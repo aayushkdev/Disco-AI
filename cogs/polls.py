@@ -1,16 +1,37 @@
 import discord
-from discord.ext import commands
-import asyncio
+from discord.ext import commands, tasks
+import re
+from datetime import datetime, timedelta, timezone
 
 class PollsCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.polls = {}  
+        self.check_polls.start()
+
+    def parse_duration(self, duration: str):
+        """Parses duration like '1y2mo3w4d5h6m7s' into a timedelta."""
+        time_units = {
+            "y": 365 * 24 * 60 * 60, 
+            "mo": 30 * 24 * 60 * 60,
+            "w": 7 * 24 * 60 * 60,  
+            "d": 24 * 60 * 60,   
+            "h": 60 * 60,         
+            "m": 60,                  
+            "s": 1               
+        }
+
+        total_seconds = 0
+        matches = re.findall(r"(\d+)(y|mo|w|d|h|m|s)", duration)
+
+        for value, unit in matches:
+            total_seconds += int(value) * time_units[unit]
+
+        return timedelta(seconds=total_seconds) if total_seconds > 0 else None
 
     @commands.command(name="poll")
     async def create_poll(self, ctx, question: str, *options):
-        if not question or not options:
-            await ctx.send("❌ Invalid arguments! Use: `!poll <question> <option1> <option2> ... [time]`")
-            return
+        """Creates a new poll with a duration using y, mo, w, d, h, m, s format."""
         if len(options) < 2:
             await ctx.send("❌ You need at least **two options** to create a poll!")
             return
@@ -18,25 +39,22 @@ class PollsCog(commands.Cog):
             await ctx.send("❌ Polls can have a maximum of **10 options**.")
             return
 
-        try:
-            poll_duration = int(options[-1]) 
-            options = options[:-1] 
-        except:
-            poll_duration = None  
+        poll_duration = None
+        if re.match(r"^\d+[ymowdhs]+$", options[-1]):  
+            poll_duration = self.parse_duration(options[-1])
+            options = options[:-1]
 
+        if not poll_duration:
+            await ctx.send("❌ Invalid duration format! Use: `1y2mo3w4d5h6m7s` (e.g., `1h30m`).")
+            return
+
+        end_time = datetime.now(timezone.utc) + poll_duration
         description = f"**{question}**\n\n"
-        count = 1
-        for option in options:
-            description += f"{count}️⃣ {option}\n"
-            count += 1
+        for i, option in enumerate(options, start=1):
+            description += f"{i}️⃣ {option}\n"
 
         embed = discord.Embed(title="📊 New Poll!", description=description, color=discord.Color.blue())
-
-        # Set footer with time info
-        if poll_duration:
-            embed.set_footer(text=f"Poll created by {ctx.author.display_name} | Ends in {poll_duration} seconds")
-        else:
-            embed.set_footer(text=f"Poll created by {ctx.author.display_name}")
+        embed.set_footer(text=f"Poll created by {ctx.author.display_name} | Ends on {end_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
 
         poll_message = await ctx.send(embed=embed)
 
@@ -44,52 +62,40 @@ class PollsCog(commands.Cog):
         for i in range(len(options)):
             await poll_message.add_reaction(reactions[i])
 
-        if poll_duration:
-            await asyncio.sleep(poll_duration)
-            poll_message = await ctx.channel.fetch_message(poll_message.id)  
+        self.polls[poll_message.id] = (end_time, question, options, poll_message.channel.id)
 
-            results = {}
-            for i, reaction in enumerate(poll_message.reactions):
-                if i < len(options):
-                    results[options[i]] = reaction.count - 1  
+    @tasks.loop(seconds=30)
+    async def check_polls(self):
+        now = datetime.now(timezone.utc)
+        for poll_id, poll_data in list(self.polls.items()):
+            end_time, question, options, channel_id = poll_data
+            if end_time <= now:
+                channel = self.bot.get_channel(channel_id)
+                if channel:
+                    poll_message = await channel.fetch_message(poll_id)
+                    results = {options[i]: reaction.count - 1 for i, reaction in enumerate(poll_message.reactions) if i < len(options)}
 
-            all_zero = True
-            for votes in results.values():
-                if votes > 0:
-                    all_zero = False
-                    break
+                    max_votes = max(results.values(), default=0)
+                    winners = [option for option, votes in results.items() if votes == max_votes] if max_votes > 0 else ["No votes"]
 
-            if results and not all_zero:
-                max_votes = 0
-                winners = []
+                    result_description = f"**{question}**\n\n"
+                    for option, votes in results.items():
+                        result_description += f"✅ {option}: **{votes}** votes\n"
+                    result_description += f"\n🎉 **Winner:** {', '.join(winners)}"
 
-                for option, votes in results.items():
-                    if votes > max_votes:
-                        max_votes = votes
-                        winners = [option]  
-                    elif votes == max_votes:
-                        winners.append(option) 
+                    embed = discord.Embed(title="📊 Poll Ended!", description=result_description, color=discord.Color.green())
+                    embed.set_footer(text=f"Poll ended on {now.strftime('%Y-%m-%d %H:%M:%S UTC')}.")
 
-                # Format the winner output
-                if len(winners) == 1:
-                    winner = winners[0] 
-                else:
-                    winner = ", ".join(winners) 
-            else:
-                winner = "No votes" 
+                    await poll_message.edit(embed=embed)
 
-            result_description = f"**{question}**\n\n"
-            for option, votes in results.items():
-                result_description += f"✅ {option}: **{votes}** votes\n"
+                del self.polls[poll_id]
 
-            result_description += f"\n🎉 **Winner:** {winner}"
-
-            embed.title = "📊 Poll Ended!"
-            embed.description = result_description
-            embed.color = discord.Color.green()
-            embed.set_footer(text=f"Poll ended after {poll_duration} seconds.")
-
-            await poll_message.edit(embed=embed)
+    @create_poll.error
+    async def command_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send("❌ Invalid arguments! Correct usage: `!poll <question> <option1> <option2> ... [duration]`")
+        elif isinstance(error, commands.BadArgument):
+            await ctx.send("❌ Invalid input! Please check your arguments and try again.")
 
 async def setup(bot):
     await bot.add_cog(PollsCog(bot))
