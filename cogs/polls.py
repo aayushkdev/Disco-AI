@@ -9,7 +9,7 @@ class PollsCog(commands.Cog):
         self.polls = {}  
         self.check_polls.start()
 
-    def parse_duration(self, duration: str):
+    def parse_duration(self, duration):
         """Parses duration like '1y2mo3w4d5h6m7s' into a timedelta."""
         time_units = {
             "y": 365 * 24 * 60 * 60, 
@@ -30,7 +30,7 @@ class PollsCog(commands.Cog):
         return timedelta(seconds=total_seconds) if total_seconds > 0 else None
 
     @commands.command(name="poll")
-    async def create_poll(self, ctx, question: str, *options):
+    async def create_poll(self, ctx, question, *options):
         """Creates a new poll with a duration using y, mo, w, d, h, m, s format."""
         if len(options) < 2:
             await ctx.send("❌ You need at least **two options** to create a poll!")

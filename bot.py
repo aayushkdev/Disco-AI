@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -20,6 +19,7 @@ initial_extensions = [
     "cogs.polls",
     "cogs.reminders",
     "cogs.help",
+    "cogs.chat",
 ]
 
 
@@ -30,5 +30,10 @@ async def on_ready():
         print(f"loaded {ext}")
         await bot.load_extension(ext)
 
-# Run bot
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        return  
+    raise error  
+
 bot.run(TOKEN)

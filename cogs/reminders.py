@@ -8,7 +8,7 @@ class RemindersCog(commands.Cog):
         self.reminders = {}
         self.check_reminders.start()
 
-    def parse_duration(self, duration: str):
+    def parse_duration(self, duration):
         time_units = {
             "y": 365 * 24 * 60 * 60, 
             "mo": 30 * 24 * 60 * 60,
@@ -28,7 +28,7 @@ class RemindersCog(commands.Cog):
         return timedelta(seconds=total_seconds) if total_seconds > 0 else None
 
     @commands.command(name="remindme")
-    async def set_reminder(self, ctx, duration: str, *, message: str):
+    async def set_reminder(self, ctx, duration, *, message):
         time_delta = self.parse_duration(duration)
         if not time_delta:
             await ctx.send("❌ Invalid format! Use: `1y2mo3w4d5h6m7s` (e.g., `1h30m`).")
@@ -57,7 +57,7 @@ class RemindersCog(commands.Cog):
         await ctx.send(f"📅 **Your Active Reminders:**\n{reminder_list}")
 
     @commands.command(name="delreminder")
-    async def delete_reminder(self, ctx, index: int):
+    async def delete_reminder(self, ctx, index):
         user_reminders = self.reminders.get(ctx.author.id, [])
         if 1 <= index <= len(user_reminders):
             del user_reminders[index - 1]
@@ -66,7 +66,7 @@ class RemindersCog(commands.Cog):
             await ctx.send("❌ Invalid reminder index!")
 
     @commands.command(name="modifyreminder")
-    async def modify_reminder(self, ctx, index: int, new_duration: str, *, new_message: str):
+    async def modify_reminder(self, ctx, index, new_duration, *, new_message):
         user_reminders = self.reminders.get(ctx.author.id, [])
         if 1 <= index <= len(user_reminders):
             time_delta = self.parse_duration(new_duration)

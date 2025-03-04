@@ -12,6 +12,12 @@ class HelpCog(commands.Cog):
         embed = discord.Embed(title="📖 Help Menu", description="List of available commands:", color=discord.Color.blue())
         embed.set_thumbnail(url=server_icon)  
         
+        embed.add_field(name="🤖 AI Chat Commands", value=
+            "You can chat with the AI by **mentioning the bot** in a message.\n"
+            "Example: `@Disco-AI How do I use Python?`\n"
+            "The AI will respond with a concise answer!\n\n",
+            inline=False)
+        
         embed.add_field(name="📊 Poll Commands", value=
             "`!poll <question> <option1> <option2> ... [time]` - Create a poll.\n"
             "Example: `!poll 'Favorite Band?' AC/DC Metallica Nirvana 1d2h`\n"
