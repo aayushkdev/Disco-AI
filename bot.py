@@ -18,6 +18,8 @@ bot = commands.Bot(commands.when_mentioned_or("!"), intents=intents, case_insens
 initial_extensions = [ 
     "cogs.welcome", 
     "cogs.polls",
+    "cogs.reminders",
+    "cogs.help",
 ]
 
 

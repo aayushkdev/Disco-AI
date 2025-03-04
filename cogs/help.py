@@ -14,10 +14,19 @@ class HelpCog(commands.Cog):
         
         embed.add_field(name="📊 Poll Commands", value=
             "`!poll <question> <option1> <option2> ... [time]` - Create a poll.\n"
-            "Example: `!poll 'Favorite Band?' AC/DC Metallica Nirvana 30`\n"
-            "Polls can have up to 10 options and an optional time limit.\n\n", inline=False)
+            "Example: `!poll 'Favorite Band?' AC/DC Metallica Nirvana 1d2h`\n"
+            "Polls can have up to 10 options and an optional time limit.\n"
+            "Time format: `1y2mo3w4d5h6m7s` (e.g., `1h30m`).\n\n",
+            inline=False)
         
-
+        embed.add_field(name="⏰ Reminder Commands", value=
+            "`!remindme <time> <message>` - Set a reminder.\n"
+            "Time format: `1y2mo3w4d5h6m7s` (e.g., `1h30m`).\n"
+            "Example: `!remindme 1h30m Walk the dog`\n\n"
+            "`!reminders` - List active reminders.\n"
+            "`!delreminder <index>` - Delete a reminder by index.\n"
+            "`!modifyreminder <index> <new time> <new message>` - Modify an existing reminder.", inline=False)
+        
         await ctx.send(embed=embed)
 
 async def setup(bot):
