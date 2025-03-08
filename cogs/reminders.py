@@ -58,6 +58,7 @@ class RemindersCog(commands.Cog):
 
     @commands.command(name="delreminder")
     async def delete_reminder(self, ctx, index):
+        index = int(index)
         user_reminders = self.reminders.get(ctx.author.id, [])
         if 1 <= index <= len(user_reminders):
             del user_reminders[index - 1]
@@ -67,6 +68,7 @@ class RemindersCog(commands.Cog):
 
     @commands.command(name="modifyreminder")
     async def modify_reminder(self, ctx, index, new_duration, *, new_message):
+        index = int(index)
         user_reminders = self.reminders.get(ctx.author.id, [])
         if 1 <= index <= len(user_reminders):
             time_delta = self.parse_duration(new_duration)
